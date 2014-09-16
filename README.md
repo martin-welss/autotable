@@ -14,7 +14,7 @@ The first column becomes the primary key
 autotable takes a sample of the first 100 lines to guess the datatypes, which are: text, bigint, numeric and timestamp
 
 The script reads the database login from the file $HOME/system.properties, which should contain these three entries:
-
+  
   autotable.jdbc.url: jdbc:postgresql:example
   autotable.user: wildfly
   autotable.password: wildfly
