@@ -8,9 +8,9 @@ autotable does the following:
 * and inserts the data. 
 
 The first line of the file is expected to contain the column names and the standard column separator is ;
-Empty lines are ignored
-Empty columns are null
-The first column becomes the primary key
+* empty lines are ignored
+* empty columns are null
+* the first column becomes the primary key
 autotable takes a sample of the first 100 lines to guess the datatypes, which are: text, bigint, numeric and timestamp
 
 Run
