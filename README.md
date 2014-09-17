@@ -30,7 +30,7 @@ To run the script you need to have Groovy installed and the JDBC-Driver of your 
 Options
 -------
 
-At the beginning of the file you can set some options. For example to add data to an existing table, just set DROP\_TABLE and CREATE\_TABLE to false. 
+At the beginning of the script you can set some options. For example to add data to an existing table, just set DROP\_TABLE and CREATE\_TABLE to false. 
   
     GUESS_LINES=100
     DROP_TABLE=true
