@@ -12,7 +12,7 @@ The first line of the file is expected to contain the column names and the stand
 * empty columns are null
 * any field can be enclosed in double quotes ("), those are stripped
 * the first column becomes the primary key
-autotable takes a sample of the first 100 lines to guess the datatypes, which are: text, bigint, numeric and timestamp
+* autotable takes a sample of the first 100 lines to guess the datatypes, which are: text, bigint, numeric and timestamp
 
 Run
 ---
