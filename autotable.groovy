@@ -7,13 +7,13 @@ import java.nio.file.*
 // class for options to make them accessible by class ATColumn
 class ATOptions {
 	static GUESS_LINES=100
-	static DROP_TABLE=true
-	static CREATE_TABLE=true
+	static DROP_CREATE_TABLE=true
 	static STRING_DELIMITER=/(^\"|\"$)/
 	static FIELD_SEPARATOR=/;(?=([^\"]*\"[^\"]*\")*[^\"]*$)/    // ignore ; in quotes
 	static PROPERTIES="system.properties"
-	static DATE_FORMATS=["dd.MM.yyyy HH:mm:ss", "dd.MM.yyyy"]
+	static DATE_FORMATS=["dd.MM.yyyy HH:mm:ss", "dd.MM.yyyy HH:mm", "dd.MM.yyyy"]
 	static SQL_DATE="yyyy-MM-dd HH:mm:ss"
+	static PG_STRING_ESCAPE=true  // enable C-Style escapes like /n
 }
 
 @Canonical
@@ -28,6 +28,7 @@ class ATColumn {
 	
 	static void setMysqlTypes() {
 		NUMERIC="double"
+		ATOptions.PG_STRING_ESCAPE=false
 	}
 	
 	def addTypeSample(String value) {
@@ -39,12 +40,13 @@ class ATColumn {
 		else {
 			ATOptions.DATE_FORMATS.each {
 				try {
-					Date(it,value)
+					Date.parse(it,value)
 					sample=TIMESTAMP
 				}
 				catch(Exception x) { }
 			}
 		}
+		//println "type: $type - sample: $sample - value: $value"
 		
 		if(type==null) { type=sample; return }
 		if(type==sample) { return }
@@ -60,11 +62,11 @@ class ATColumn {
 	def getSQLValue(String field) {
 		if(field.length()==0) { return "null" }
 		field=field.trim().replaceAll(ATOptions.STRING_DELIMITER, "")
-		if(type==TEXT) {return "'"+field+"'" }
+		if(type==TEXT) {return ATOptions.PG_STRING_ESCAPE ? "E'"+field+"'" : "'"+field+"'" }
 		if(type==TIMESTAMP) {
 			for(def format: ATOptions.DATE_FORMATS) {
 				try {
-					def time=Date(format,field)
+					def time=Date.parse(format,field)
 					return "'"+time.format(ATOptions.SQL_DATE)+"'"
 				}
 				catch(Exception x) { }
@@ -115,11 +117,9 @@ data.withReader { reader ->
 	}
 }
 
-if(ATOptions.DROP_TABLE) {
+if(ATOptions.DROP_CREATE_TABLE) {
 	println "drop table $tablename"
 	sql.execute("drop table if exists "+tablename)
-}
-if(ATOptions.CREATE_TABLE) {
 	command="create table "+tablename
 	command+=" (" + columns*.getDDL().join(",") + ")"
 	println command
