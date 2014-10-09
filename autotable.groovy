@@ -9,7 +9,7 @@ class ATOptions {
 	static GUESS_LINES=100
 	static DROP_TABLE=true
 	static CREATE_TABLE=true
-	static STRING_DELIMITER=/\"/
+	static STRING_DELIMITER=/(^\"|\"$)/
 	static FIELD_SEPARATOR=/;(?=([^\"]*\"[^\"]*\")*[^\"]*$)/    // ignore ; in quotes
 	static PROPERTIES="system.properties"
 	static DATE_FORMATS=["dd.MM.yyyy HH:mm:ss", "dd.MM.yyyy"]
