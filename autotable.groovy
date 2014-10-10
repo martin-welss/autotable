@@ -4,16 +4,36 @@ import groovy.sql.Sql
 
 import java.nio.file.*
 
+
+
+sysprops=new File("${System.properties.'user.home'}/autotable.properties")
+if(sysprops.exists()==false || args.size()==0) {
+	help()
+	System.exit(1)
+}
+println("reading properties from $sysprops")
+sysprops.withInputStream {
+	System.properties.load(it)
+}
+
+
 // class for options to make them accessible by class ATColumn
 class ATOptions {
-	static GUESS_LINES=100
-	static DROP_CREATE_TABLE=true
-	static STRING_DELIMITER=/(^\"|\"$)/
-	static FIELD_SEPARATOR=/;(?=([^\"]*\"[^\"]*\")*[^\"]*$)/    // ignore ; in quotes
-	static PROPERTIES="system.properties"
-	static DATE_FORMATS=["dd.MM.yyyy HH:mm:ss", "dd.MM.yyyy HH:mm", "dd.MM.yyyy"]
-	static SQL_DATE="yyyy-MM-dd HH:mm:ss"
-	static PG_STRING_ESCAPE=true  // enable C-Style escapes like /n
+	static jdbc_url=System.properties.'jdbc_url'
+	static jdbc_user=System.properties.'jdbc_user'
+	static jdbc_password=System.properties.'jdbc_password'
+	static guess_lines=Integer.getInteger("guess_lines", 100)
+	static drop_create_table=System.properties.'drop_create_table'==null ? true : Boolean.getBoolean("drop_create_table")
+	static date_formats=["dd.MM.yyyy HH:mm:ss", "dd.MM.yyyy HH:mm", "dd.MM.yyyy"]
+	static sql_date=System.properties.'sql_date' ?: "yyyy-MM-dd HH:mm:ss"
+	static string_delimiter=/(^\"|\"$)/
+    static json_type="json"
+	
+	// enable C-Style escapes like /n
+	static pg_string_escape=System.properties.'pg_string_escape'==null ? true : Boolean.getBoolean("pg_string_escape") 
+	
+	// ignore ; in quotes
+	static field_separator=/;(?=([^\"]*\"[^\"]*\")*[^\"]*$)/    
 }
 
 @Canonical
@@ -25,20 +45,23 @@ class ATColumn {
 	static String NUMERIC="numeric"
 	static String TEXT="text"
 	static String TIMESTAMP="timestamp"
+	static String JSON=ATOptions.json_type
 	
 	static void setMysqlTypes() {
 		NUMERIC="double"
-		ATOptions.PG_STRING_ESCAPE=false
+		JSON="text"
+		ATOptions.pg_string_escape=false
 	}
 	
 	def addTypeSample(String value) {
-		value=value.trim().replaceAll(ATOptions.STRING_DELIMITER, "")
+		value=value.trim().replaceAll(ATOptions.string_delimiter, "")
 		if(value.size()==0) { return }
 		def sample=TEXT
 		if(value.isNumber()) { sample=NUMERIC }
 		if(value.isLong()) { sample=BIGINT }
-		else {
-			ATOptions.DATE_FORMATS.each {
+		if(sample==TEXT && value =~ /^(\[|\{)/) { sample=JSON }
+		if(sample==TEXT) {
+			ATOptions.date_formats.each {
 				try {
 					Date.parse(it,value)
 					sample=TIMESTAMP
@@ -61,13 +84,14 @@ class ATColumn {
 	
 	def getSQLValue(String field) {
 		if(field.length()==0) { return "null" }
-		field=field.trim().replaceAll(ATOptions.STRING_DELIMITER, "")
-		if(type==TEXT) {return ATOptions.PG_STRING_ESCAPE ? "E'"+field+"'" : "'"+field+"'" }
+		field=field.trim().replaceAll(ATOptions.string_delimiter, "")
+		if(type==TEXT) {return ATOptions.pg_string_escape ? "E'"+field+"'" : "'"+field+"'" }
+		if(type==JSON) {return "'"+field+"'" }
 		if(type==TIMESTAMP) {
-			for(def format: ATOptions.DATE_FORMATS) {
+			for(def format: ATOptions.date_formats) {
 				try {
 					def time=Date.parse(format,field)
-					return "'"+time.format(ATOptions.SQL_DATE)+"'"
+					return "'"+time.format(ATOptions.sql_date)+"'"
 				}
 				catch(Exception x) { }
 			}
@@ -81,19 +105,13 @@ class ATColumn {
 tablename=Paths.get(args[0]).getFileName().toString().tokenize('.')[0]
 columns=[]
 
-sysprops=new File("${System.properties.'user.home'}/${ATOptions.PROPERTIES}")
-assert sysprops.exists()
-println("reading properties from $sysprops")
-sysprops.withInputStream {
-	System.properties.load(it)
-}
+println "connecting to database: ${ATOptions.jdbc_url} as user ${ATOptions.jdbc_user}"
+def sql= Sql.newInstance("${ATOptions.jdbc_url}",
+					"${ATOptions.jdbc_user}",
+					"${ATOptions.jdbc_password}")
 
-println "connecting to database: ${System.properties.'autotable.jdbc.url'} as user ${System.properties.'autotable.user'}"
-def sql= Sql.newInstance("${System.properties.'autotable.jdbc.url'}",
-					"${System.properties.'autotable.user'}",
-					"${System.properties.'autotable.password'}")
 
-if((System.properties.'autotable.jdbc.url').toLowerCase().indexOf("mysql")>4) {
+if((ATOptions.jdbc_url).toLowerCase().indexOf("mysql")>4) {
 	ATColumn.setMysqlTypes()
 }
 
@@ -106,8 +124,8 @@ data.withReader { reader ->
 		line++
 		row=row.trim()
 		if(row.length()==0) { continue }
-		if(line>ATOptions.GUESS_LINES) { break }
-		def fields=row.split(ATOptions.FIELD_SEPARATOR)
+		if(line>ATOptions.guess_lines) { break }
+		def fields=row.split(ATOptions.field_separator)
 		if(line==1) {
 			fields.each { columns << new ATColumn(it,null) }
 			columns[0].primary=true
@@ -117,7 +135,7 @@ data.withReader { reader ->
 	}
 }
 
-if(ATOptions.DROP_CREATE_TABLE) {
+if(ATOptions.drop_create_table) {
 	println "drop table $tablename"
 	sql.execute("drop table if exists "+tablename)
 	command="create table "+tablename
@@ -130,7 +148,7 @@ if(ATOptions.DROP_CREATE_TABLE) {
 // read data
 line=0
 inserts=0
-data.splitEachLine(ATOptions.FIELD_SEPARATOR) { fields ->
+data.splitEachLine(ATOptions.field_separator) { fields ->
 	line++
 	if(line>1 && fields.size()>1) {
 		command="insert into "+tablename
@@ -145,3 +163,20 @@ data.splitEachLine(ATOptions.FIELD_SEPARATOR) { fields ->
 }
 println "== total lines: $line == inserts: $inserts =="
 sql.close()
+
+
+void help() {
+	println "A properties file \$HOME/autotable.properties is mandatory which contains db connection data and options"
+	println "Here is a list of the properties and thier default values. The three jdbc properties must be set, all others are optional\n"
+	println "jdbc_url: "
+	println "jdbc_user: "
+	println "jdbc_password: \n"
+	println "drop_create_table: $ATOptions.drop_create_table"
+	println "guess_lines: $ATOptions.guess_lines"
+	println "date_formats: $ATOptions.date_formats"
+	println "sql_date: $ATOptions.sql_date"
+	println "pg_string_escape: $ATOptions.pg_string_escape"
+	println "string_delimiter: $ATOptions.string_delimiter"
+	println "field_separator: $ATOptions.field_separator"
+	println "json_type: $ATOptions.json_type"
+}

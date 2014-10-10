@@ -3,25 +3,26 @@ autotable
 
 autotable tries to be as smart as possible and do the right things automatically:
 * it reads a csv file into PostgreSQL or MySQL
-* creates a table with the same name as the file
+* creates a table with the same name as the file (the basename, without path and suffix)
 * tries to guess the datatypes of the columns
 * and inserts the data
+* it can handle multiline strings, dates, timestamps and json data
 
-The first line of the file is expected to contain the column names and the standard column separator is ;
+The first line of the file is expected to contain the column names and the standard column separator is ; (semicolon)
 * empty lines are ignored
 * empty columns are null
 * any field can be enclosed in double quotes ("), those are stripped
 * the first column becomes the primary key
-* autotable takes a sample of the first 100 lines to guess the datatypes, which are: text, bigint, numeric and timestamp
+* autotable takes a sample of the first 100 lines to guess the datatypes, which are: text, bigint, numeric, timestamp and json
 
 Run
 ---
 
-The script reads the database login from the file $HOME/system.properties, which should contain three entries like this:
+The script reads the database login from the file $HOME/autotable.properties, which should contain at least three entries like this:
   
-    autotable.jdbc.url: jdbc:postgresql:example
-    autotable.user: wildfly
-    autotable.password: wildfly
+    jdbc_url: jdbc:postgresql:example
+    jdbc_user: wildfly
+    jdbc_password: wildfly
 
 To run the script you need to have Groovy installed and the JDBC-Driver of your choice at hand. So here's the commandline to import table _books_ into postgres:
 
@@ -30,15 +31,16 @@ To run the script you need to have Groovy installed and the JDBC-Driver of your 
 Options
 -------
 
-At the beginning of the script you can set some options. For example to add data to an existing table, just set DROP\_CREATE\_TABLE to false. 
+In autotable.properties you can set several options. For example to add data to an existing table, just set **drop_create_table** to false. Here is the complete list with their default values: 
   
-    GUESS_LINES=100
-    DROP_CREATE_TABLE=true
-    CREATE_TABLE=true
-    STRING_DELIMITER=/\"/
-    FIELD_SEPARATOR=/;(?=([^\"]*\"[^\"]*\")*[^\"]*$)/    // ignore ; in quotes
-    PROPERTIES="system.properties"
-    DATE_FORMATS=["dd.MM.yyyy HH:mm:ss", "dd.MM.yyyy"]
-    SQL_DATE="yyyy-MM-dd HH:mm:ss"
+    drop_create_table: true
+    guess_lines: 100
+    date_formats: [dd.MM.yyyy HH:mm:ss, dd.MM.yyyy HH:mm, dd.MM.yyyy]
+    sql_date: yyyy-MM-dd HH:mm:ss
+    pg_string_escape: true
+    string_delimiter: (^\"|\"$)
+    field_separator: ;(?=([^\"]*\"[^\"]*\")*[^\"]*$)
+    json_type: json
+    
   
   
