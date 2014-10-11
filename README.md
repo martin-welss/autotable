@@ -15,6 +15,8 @@ The first line of the file is expected to contain the column names and the stand
 * the first column becomes the primary key
 * autotable takes a sample of the first 100 lines to guess the datatypes, which are: text, bigint, numeric, timestamp and json
 
+NOTICE: MySQL has no native JSON datatype, so json is imported into MySQL as text column. But there are issues, too with newlines and other escapes.
+
 Run
 ---
 
@@ -24,7 +26,7 @@ The script reads the database login from the file $HOME/autotable.properties, wh
     jdbc_user: wildfly
     jdbc_password: wildfly
 
-To run the script you need to have Groovy installed and the JDBC-Driver of your choice at hand. So here's the commandline to import table _books_ into postgres:
+To run the script you need to have Java and Groovy installed and the JDBC-Driver of your choice at hand. So here's the commandline to import table _books_ into postgres:
 
     groovy -cp ../lib/postgresql-9.3-1101.jdbc41.jar autotable.groovy ../stuff/books.csv
 
