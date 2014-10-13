@@ -3,19 +3,20 @@ autotable
 
 autotable tries to be as smart as possible and do the right things automatically:
 * it reads a csv file into PostgreSQL or MySQL
-* creates a table with the same name as the file (the basename, without path and suffix)
-* tries to guess the datatypes of the columns
-* and inserts the data
-* it can handle multiline strings, dates, timestamps and json data
+* creates a table with the same name as the file (just the basename, without path and suffix)
+* tries to guess the datatypes of the columns from the first 100 lines
+* inserts the data
+* it recognizes \(multiline\) strings, integers, floating point numbers, dates, timestamps and json data
 
 The first line of the file is expected to contain the column names and the standard column separator is ; (semicolon)
 * empty lines are ignored
 * empty columns are null
-* any field can be enclosed in double quotes ("), those are stripped
+* any field can optionally be enclosed in double quotes ("), those are stripped
+* a text field enclosed in double quotes can contain semicolons, no escaping necessary
 * the first column becomes the primary key
 * autotable takes a sample of the first 100 lines to guess the datatypes, which are: text, bigint, numeric, timestamp and json
 
-NOTICE: MySQL has no native JSON datatype, so json is imported into MySQL as text column. But there are issues, too with newlines and other escapes.
+NOTICE: MySQL has no native JSON datatype, so JSON is imported into MySQL as text column. But the mysql text type does not handle well JSON newlines in string literals and other escapes. You have been warned...
 
 Run
 ---
