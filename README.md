@@ -8,7 +8,7 @@ autotable tries to be as smart as possible and do the right things automatically
 * inserts the data
 * it recognizes \(multiline\) strings, integers, floating point numbers, dates, timestamps and json data
 
-The first line of the file is expected to contain the column names and the standard column separator is ; (semicolon)
+The first line of the file is expected to contain the column names. The column separator is either ; or , and is automatically detected. Furthermore, the following rules apply:
 * empty lines are ignored
 * empty columns are null
 * any field can optionally be enclosed in double quotes ("), those are stripped
@@ -42,7 +42,6 @@ In autotable.properties you can set several options. For example to add data to 
     sql_date: yyyy-MM-dd HH:mm:ss
     pg_string_escape: true
     string_delimiter: (^\"|\"$)
-    field_separator: ;(?=([^\"]*\"[^\"]*\")*[^\"]*$)
     json_type: json
     
   
