@@ -33,7 +33,9 @@ class ATOptions {
 	static pg_string_escape=System.properties.'pg_string_escape'==null ? true : Boolean.getBoolean("pg_string_escape") 
 	
 	// ignore ; in quotes
-	static field_separator=/;(?=([^\"]*\"[^\"]*\")*[^\"]*$)/    
+	static comma_separator=/,(?=([^\"]*\"[^\"]*\")*[^\"]*$)/    
+	static semicolon_separator=/;(?=([^\"]*\"[^\"]*\")*[^\"]*$)/  
+	static field_separator=null  
 }
 
 @Canonical
@@ -85,6 +87,8 @@ class ATColumn {
 	def getSQLValue(String field) {
 		if(field.length()==0) { return "null" }
 		field=field.trim().replaceAll(ATOptions.string_delimiter, "")
+		field=field.replaceAll("'", "\\\\'");
+
 		if(type==TEXT) {return ATOptions.pg_string_escape ? "E'"+field+"'" : "'"+field+"'" }
 		if(type==JSON) {return "'"+field+"'" }
 		if(type==TIMESTAMP) {
@@ -125,9 +129,27 @@ data.withReader { reader ->
 		row=row.trim()
 		if(row.length()==0) { continue }
 		if(line>ATOptions.guess_lines) { break }
+		
+		if(ATOptions.field_separator==null) {
+			// determine field separator by counting commas and semicolons
+			semicount=row.replaceAll("[^;]","").length()
+			commacount=row.replaceAll("[^,]","").length()
+			println "commas: $commacount - semic: $semicount"
+			if(semicount>commacount) {
+				ATOptions.field_separator=ATOptions.semicolon_separator
+			} 
+			else {
+				ATOptions.field_separator=ATOptions.comma_separator
+			}
+			println "field separator is: ${ATOptions.field_separator}"
+		}
+
 		def fields=row.split(ATOptions.field_separator)
 		if(line==1) {
-			fields.each { columns << new ATColumn(it,null) }
+			fields.each {
+				it=it.trim().toLowerCase().replaceAll("\\W+","_") 
+				columns << new ATColumn(it,null) 
+			}
 			columns[0].primary=true
 			continue
 		}
@@ -148,9 +170,12 @@ if(ATOptions.drop_create_table) {
 // read data
 line=0
 inserts=0
-data.splitEachLine(ATOptions.field_separator) { fields ->
+data.splitEachLine(ATOptions.field_separator) { splits ->
 	line++
+	fields=[]
+	fields.addAll(splits)
 	if(line>1 && fields.size()>1) {
+		while(fields.size() < columns.size()) { fields << "" }
 		command="insert into "+tablename
 		command+=" (" + columns*.name.join(",") + ") values "
 		vallist=[]
